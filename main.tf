@@ -22,7 +22,6 @@ resource "azurerm_resource_group" "res_g" {
   tags = {
     envionment = "basic"
     source     = "Terraform"
-    owner      = "buddhike"
   }
 
 }
