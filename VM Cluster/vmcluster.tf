@@ -39,11 +39,14 @@ terraform {
    resource_group_name          = azurerm_resource_group.redun_set.name
    allocation_method            = "Static"
  }
-
+#======================================
+# Change details to amend LB Values
+#======================================
  resource "azurerm_lb" "NLB" {
    name                = "NLB"
    location            = azurerm_resource_group.redun_set.location
    resource_group_name = azurerm_resource_group.redun_set.name
+   sku = "Basic"
 
    frontend_ip_configuration {
      name                 = "NLBfrontPIP"
