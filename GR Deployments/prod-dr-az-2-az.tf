@@ -1,50 +1,111 @@
-resource "azurerm_resource_group" "primary" {
-  name     = "tfex-replicated-vm-primary"
-  location = "West US"
+
+#----------------------
+#Create Resource Groups
+#----------------------
+resource "azurerm_resource_group" "production" {
+  name     = "production-RG"
+  location = "East Asia"
 }
 
-resource "azurerm_resource_group" "secondary" {
-  name     = "tfex-replicated-vm-secondary"
-  location = "East US"
+resource "azurerm_resource_group" "dr" {
+  name     = "dr-RG"
+  location = "Australia East"
 }
+
+# ----------
+# Networking
+# ----------
+
+resource "azurerm_virtual_network" "production" {
+  name                = "primary-vnet"
+  resource_group_name = azurerm_resource_group.production.name
+  address_space       = ["10.1.0.0/16"]
+  location            = azurerm_resource_group.production.location
+}
+
+resource "azurerm_virtual_network" "dr" {
+  name                = "dr-vnet"
+  resource_group_name = azurerm_resource_group.dr.name
+  address_space       = ["10.2.0.0/16"]
+  location            = azurerm_resource_group.dr.location
+}
+
+resource "azurerm_subnet" "production" {
+  name                 = "primary-subnet"
+  resource_group_name  = azurerm_resource_group.production.name
+  virtual_network_name = azurerm_virtual_network.primary-vnet.name
+  address_prefixes     = ["10.1.1.0/24"]
+}
+
+resource "azurerm_subnet" "dr" {
+  name                 = "dr-subnet"
+  resource_group_name  = azurerm_resource_group.dr.name
+  virtual_network_name = azurerm_virtual_network.dr-vnet.name
+  address_prefixes     = ["10.2.1.0/24"]
+}
+
+resource "azurerm_public_ip" "production" {
+  name                = "primary-pip"
+  allocation_method   = "Static"
+  location            = azurerm_resource_group.production.location
+  resource_group_name = azurerm_resource_group.production.name
+  sku                 = "Basic"
+}
+
+resource "azurerm_public_ip" "dr" {
+  name                = "secondary-pip"
+  allocation_method   = "Static"
+  location            = azurerm_resource_group.dr.location
+  resource_group_name = azurerm_resource_group.dr.name
+  sku                 = "Basic"
+}
+
+
+#----------------------------
+#Creating Primary Environment
+#----------------------------
 
 resource "azurerm_virtual_machine" "vm" {
   name                  = "vm"
-  location              = azurerm_resource_group.primary.location
-  resource_group_name   = azurerm_resource_group.primary.name
+  location              = azurerm_resource_group.production.location
+  resource_group_name   = azurerm_resource_group.production.name
   vm_size               = "Standard_B1s"
   network_interface_ids = [azurerm_network_interface.vm.id]
 
-  storage_image_reference {
-    publisher = "OpenLogic"
-    offer     = "CentOS"
-    sku       = "7.5"
+  storage_image_reference {              # Provide OS preferences
+    publisher = "Canonical"     
+    offer     = "UbuntuServer"
+    sku       = "20.04-LTS"
     version   = "latest"
   }
 
-  storage_os_disk {
-    name              = "vm-os-disk"
+  storage_os_disk {                     # Disk preferences
+    name              = "vm-os-disk" 
     os_type           = "Linux"
     caching           = "ReadWrite"
     create_option     = "FromImage"
-    managed_disk_type = "Premium_LRS"
+    managed_disk_type = "Standard_LRS"
   }
 
-  os_profile {
-    admin_username = "test-admin-123"
-    admin_password = "test-pwd-123"
+  os_profile {                          # Login Credentials
+    admin_username = "admin"  
+    admin_password = "pa$$word"
     computer_name  = "vm"
   }
 
-  os_profile_linux_config {
+  os_profile_linux_config {                     
     disable_password_authentication = false
   }
 }
 
-resource "azurerm_recovery_services_vault" "vault" {
-  name                = "example-recovery-vault"
-  location            = azurerm_resource_group.secondary.location
-  resource_group_name = azurerm_resource_group.secondary.name
+#-----------------------
+# Creatiion of ASR Vault
+#-----------------------
+
+resource "azurerm_recovery_services_vault" "ASR-vault" {
+  name                = "Site-Recovery-Vault"
+  location            = azurerm_resource_group.dr.location
+  resource_group_name = azurerm_resource_group.dr.name
   sku                 = "Standard"
 }
 
@@ -104,6 +165,9 @@ resource "azurerm_site_recovery_network_mapping" "network-mapping" {
   target_network_id           = azurerm_virtual_network.secondary.id
 }
 
+#------------------------------------------
+# Primary Site Storage Accounts  - Optional
+#------------------------------------------
 resource "azurerm_storage_account" "primary" {
   name                     = "primaryrecoverycache"
   location                 = azurerm_resource_group.primary.location
@@ -112,49 +176,7 @@ resource "azurerm_storage_account" "primary" {
   account_replication_type = "LRS"
 }
 
-resource "azurerm_virtual_network" "primary" {
-  name                = "network1"
-  resource_group_name = azurerm_resource_group.primary.name
-  address_space       = ["192.168.1.0/24"]
-  location            = azurerm_resource_group.primary.location
-}
 
-resource "azurerm_virtual_network" "secondary" {
-  name                = "network2"
-  resource_group_name = azurerm_resource_group.secondary.name
-  address_space       = ["192.168.2.0/24"]
-  location            = azurerm_resource_group.secondary.location
-}
-
-resource "azurerm_subnet" "primary" {
-  name                 = "network1-subnet"
-  resource_group_name  = azurerm_resource_group.primary.name
-  virtual_network_name = azurerm_virtual_network.primary.name
-  address_prefixes     = ["192.168.1.0/24"]
-}
-
-resource "azurerm_subnet" "secondary" {
-  name                 = "network2-subnet"
-  resource_group_name  = azurerm_resource_group.secondary.name
-  virtual_network_name = azurerm_virtual_network.secondary.name
-  address_prefixes     = ["192.168.2.0/24"]
-}
-
-resource "azurerm_public_ip" "primary" {
-  name                = "vm-public-ip-primary"
-  allocation_method   = "Static"
-  location            = azurerm_resource_group.primary.location
-  resource_group_name = azurerm_resource_group.primary.name
-  sku                 = "Basic"
-}
-
-resource "azurerm_public_ip" "secondary" {
-  name                = "vm-public-ip-secondary"
-  allocation_method   = "Static"
-  location            = azurerm_resource_group.secondary.location
-  resource_group_name = azurerm_resource_group.secondary.name
-  sku                 = "Basic"
-}
 
 resource "azurerm_network_interface" "vm" {
   name                = "vm-nic"
@@ -169,10 +191,14 @@ resource "azurerm_network_interface" "vm" {
   }
 }
 
+# -----------
+# Replication
+# -----------
+
 resource "azurerm_site_recovery_replicated_vm" "vm-replication" {
   name                                      = "vm-replication"
-  resource_group_name                       = azurerm_resource_group.secondary.name
-  recovery_vault_name                       = azurerm_recovery_services_vault.vault.name
+  resource_group_name                       = azurerm_resource_group.dr.name
+  recovery_vault_name                       = azurerm_recovery_services_vault.ASR-vault.name
   source_recovery_fabric_name               = azurerm_site_recovery_fabric.primary.name
   source_vm_id                              = azurerm_virtual_machine.vm.id
   recovery_replication_policy_id            = azurerm_site_recovery_replication_policy.policy.id
@@ -192,8 +218,8 @@ resource "azurerm_site_recovery_replicated_vm" "vm-replication" {
 
   network_interface {
     source_network_interface_id   = azurerm_network_interface.vm.id
-    target_subnet_name            = azurerm_subnet.secondary.name
-    recovery_public_ip_address_id = azurerm_public_ip.secondary.id
+    target_subnet_name            = azurerm_subnet.dr.name
+    recovery_public_ip_address_id = azurerm_public_ip.dr.id
   }
 
   depends_on = [
