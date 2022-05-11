@@ -138,7 +138,7 @@ resource "azurerm_virtual_machine_scale_set" "vmscset" {
   }
 
   network_profile {
-    name    = "terraformnetworkprofile"
+    name    = "scalesetnetworkprofile"
     primary = true
 
     ip_configuration {
@@ -170,6 +170,10 @@ resource "azurerm_monitor_autoscale_setting" "asconfig" {
   profile {
     name = "defaultProfile"
 
+    #fixed_date{}
+    #recurrence{}
+    }
+
     capacity {
       default = 1
       minimum = 1
@@ -184,7 +188,7 @@ resource "azurerm_monitor_autoscale_setting" "asconfig" {
         metric_resource_id = azurerm_virtual_machine_scale_set.vmscset.id
         time_grain         = "PT1M"
         statistic          = "Average"
-        time_window        = "PT5M"
+        time_window        = "PT30M"
         time_aggregation   = "Average"
         operator           = "GreaterThan"
         threshold          = 75
@@ -194,13 +198,15 @@ resource "azurerm_monitor_autoscale_setting" "asconfig" {
           operator = "Equals"
           values   = ["App1"]
         }
+
+        # time_grain - Specifies the granularity of metrics that the rule monitors
       }
 
       scale_action {
         direction = "Increase"
         type      = "ChangeCount"
         value     = "1"
-        cooldown  = "PT1M"
+        cooldown  = "PT3M"
       }
     }
 
@@ -212,7 +218,7 @@ resource "azurerm_monitor_autoscale_setting" "asconfig" {
         metric_resource_id = azurerm_virtual_machine_scale_set.vmscset.id
         time_grain         = "PT1M"
         statistic          = "Average"
-        time_window        = "PT5M"
+        time_window        = "PT30M"
         time_aggregation   = "Average"
         operator           = "LessThan"
         threshold          = 25
@@ -222,7 +228,7 @@ resource "azurerm_monitor_autoscale_setting" "asconfig" {
         direction = "Decrease"
         type      = "ChangeCount"
         value     = "1"
-        cooldown  = "PT1M"
+        cooldown  = "PT3M"
       }
     }
   }
@@ -235,3 +241,9 @@ resource "azurerm_monitor_autoscale_setting" "asconfig" {
     }
   }
 }
+#----------
+# Reference
+#----------
+
+# OS Disk Property - https://docs.azure.cn/zh-cn/dotnet/api/microsoft.azure.management.compute.models.osdisk?view=azure-dotnet
+#                    https://registry.terraform.io/providers/hashicorp/azurestack/latest/docs/resources/virtual_machine_scale_set#storage_profile_data_disk
