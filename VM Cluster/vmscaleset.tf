@@ -51,14 +51,12 @@ resource "azurerm_lb_backend_address_pool" "backendpool" {
   name                = "BackendIPPool"
 }
 
-#Completed up to here above
-
 resource "azurerm_lb_nat_pool" "lbnatpool" {
   resource_group_name            = azurerm_resource_group.prodrg.name
   name                           = "for_secure_access"
   loadbalancer_id                = azurerm_lb.prodlb.id
   protocol                       = "TCP"
-  frontend_port_start            = 1
+  frontend_port_start            = 0
   frontend_port_end              = 60000
   backend_port                   = 22
   frontend_ip_configuration_name = "PIPAddress"
@@ -136,6 +134,9 @@ resource "azurerm_virtual_machine_scale_set" "vmscset" {
       key_data = file("~/.ssh/demo_key.pub")
     }
   }
+
+  # LB NAT and Rule Config - https://azure.microsoft.com/en-us/blog/manage-port-forwarding-for-backend-pool-with-azure-load-balancer/
+  
 
   network_profile {
     name    = "scalesetnetworkprofile"
