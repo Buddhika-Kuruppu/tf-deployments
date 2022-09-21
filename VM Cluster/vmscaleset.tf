@@ -166,7 +166,7 @@ resource "azurerm_monitor_autoscale_setting" "asconfig" {
   location            = azurerm_resource_group.prodrg.location
   target_resource_id  = azurerm_virtual_machine_scale_set.vmscset.id
 
-# parameters for Auto-Scaling
+  # parameters for Auto-Scaling
 
   profile {
     name = "defaultProfile"
@@ -181,7 +181,7 @@ resource "azurerm_monitor_autoscale_setting" "asconfig" {
       maximum = 5
     }
 
-# Load Increasing Rule 
+  # Load Increasing Rule 
 
     rule {
       metric_trigger {
@@ -241,7 +241,7 @@ resource "azurerm_monitor_autoscale_setting" "asconfig" {
       custom_emails                         = ["buddhikakuruppu@hotmail.com"]
     }
   }
-}
+
 #----------
 # Reference
 #----------

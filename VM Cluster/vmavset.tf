@@ -1,3 +1,4 @@
+# VM Availability Set deployment
 terraform {
 
   required_version = ">=0.12"
@@ -89,6 +90,8 @@ resource "azurerm_availability_set" "avset" {
   platform_update_domain_count = 5
   managed                      = true
 }
+
+
 #==================================================
 #change this resource as per required VM parameters
 #==================================================
